@@ -1,0 +1,175 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		// 服务器
+		{
+			"label": "ServerMkbuild",
+			"type": "shell",
+			"command": "mkdir",
+			"args": [
+				"-p",
+				"build"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/Server"
+			},
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": true
+			},
+			"problemMatcher": "$msCompile",
+		},
+		{
+			"label": "ServerCMake",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				".."
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/Server/build"
+			},
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": true
+			},
+			"problemMatcher": "$msCompile",
+			"dependsOn": [
+				"ServerMkbuild"
+			]
+		},
+		{
+			"label": "ServerCompile",
+			"type": "shell",
+			"command": "cmake --build .",
+			"options": {
+				"cwd": "${workspaceFolder}/src/Server/build"
+			},
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"clear": true
+			},
+			"problemMatcher": "$msCompile",
+			"dependsOn": [
+				"ServerCMake"
+			]
+		},
+		{
+			"label": "ServerRun",
+			"type": "shell",
+			"command": "./server",
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/src/Server"
+			},
+			"problemMatcher": "$msCompile",
+			"dependsOn": [
+				"ServerCompile"
+			]
+		},
+		// 客户端
+		{
+			"label": "ClientMkbuild",
+			"type": "shell",
+			"command": "mkdir",
+			"args": [
+				"-p",
+				"build"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/Client"
+			},
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": true
+			},
+			"problemMatcher": "$msCompile",
+		},
+		{
+			"label": "ClientCMake",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				".."
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/Client/build"
+			},
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": true
+			},
+			"problemMatcher": "$msCompile",
+			"dependsOn": [
+				"ClientMkbuild"
+			]
+		},
+		{
+			"label": "ClientCompile",
+			"type": "shell",
+			"command": "cmake --build .",
+			"options": {
+				"cwd": "${workspaceFolder}/src/Client/build"
+			},
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"clear": true
+			},
+			"problemMatcher": "$msCompile",
+			"dependsOn": [
+				"ClientCMake"
+			]
+		},
+		{
+			"label": "ClientRun",
+			"type": "shell",
+			"command": "./client",
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/src/Client"
+			},
+			"problemMatcher": "$msCompile",
+			"dependsOn": [
+				"ClientCompile"
+			]
+		}
+	]
+}

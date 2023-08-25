@@ -1,0 +1,15 @@
+{
+    "runUser": "scutech",
+    "address": "0.0.0.0",
+    "port": 8080,
+    "concurrencyLimit": 3,
+    "keepaliveLimit": 5,
+    "password": "lhwlovekan",
+    "params": [
+        {
+            "url": "/data",
+            "handlerName": "data",
+            "path": "/home/scutech/Server_Source"
+        }
+    ]
+}
