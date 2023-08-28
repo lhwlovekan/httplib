@@ -43,16 +43,23 @@ void Handler::WriteLog(json server_log) {
     }
 }
 
+string Handler::FirstMatch(string first_match) {
+    int index = first_match.find_first_of('/', 1);
+    first_match = first_match.substr(0, index);
+    return first_match;
+}
+
 void SpecialHandler::Method(const Request &req, Response &res) {
     string ServerPath = path + req.matches[1].str() + req.matches[2].str();
     string err = "";
-    switch (static_cast<int>(type)) {
+    switch (static_cast<int>(MethodMap[FirstMatch(req.matches[0].str())])) {
     case static_cast<int>(MethodType::TestServer): {
         Test(req, res, err);
         WriteLog(CreateLog(req, "进行连接测试", err));
         break;
     }
     case static_cast<int>(MethodType::CloseServer): {
+        cout << req.matches[0] << endl;
         CloseServer(req, res, err);
         WriteLog(CreateLog(req, "关闭服务器", err));
         break;
@@ -74,20 +81,10 @@ void SpecialHandler::CloseServer(const Request &req, Response &res, string &err)
 void FormatHandler::Method(const Request &req, Response &res) {
     string ServerPath = path + req.matches[1].str() + req.matches[2].str();
     string err = "";
-    switch (static_cast<int>(type)) {
-    case static_cast<int>(MethodType::SendFixedContent): {
-        SendFixedContent(ServerPath, res, myredis, err);
-        WriteLog(CreateLog(req, "以定长格式下载文件" + req.matches[1].str() + req.matches[2].str(), err));
-        break;
-    }
-    case static_cast<int>(MethodType::SendChunkedContent): {
-        SendChunkedContent(ServerPath, res, myredis, err);
-        WriteLog(CreateLog(req, "以变长格式下载文件" + req.matches[1].str() + req.matches[2].str(), err));
-        break;
-    }
-    case static_cast<int>(MethodType::MergeSmallFile): {
-        MergeSmallFile(ServerPath, req, res, myredis, err);
-        WriteLog(CreateLog(req, "上传小文件" + req.matches[1].str() + req.matches[2].str(), err));
+    switch (static_cast<int>(MethodMap[FirstMatch(req.matches[0].str())])) {
+    case static_cast<int>(MethodType::SendClientContent): {
+        SendClientContent(ServerPath, res, myredis, err);
+        WriteLog(CreateLog(req, "下载文件" + req.matches[1].str() + req.matches[2].str(), err));
         break;
     }
     }
@@ -96,7 +93,7 @@ void FormatHandler::Method(const Request &req, Response &res) {
 void FormatHandler::MethodWithContentReader(const Request &req, Response &res, const ContentReader &content_reader) {
     string ServerPath = path + req.matches[1].str() + req.matches[2].str();
     string err = "";
-    switch (static_cast<int>(type)) {
+    switch (static_cast<int>(MethodMap[FirstMatch(req.matches[0].str())])) {
     case static_cast<int>(MethodType::SaveClientContent): {
         SaveClientContent(ServerPath, res, content_reader, myredis, err);
         WriteLog(CreateLog(req, "上传文件" + req.matches[1].str() + req.matches[2].str(), err));
@@ -126,7 +123,7 @@ void FormatHandler::SaveClientContent(string path, Response &res, const ContentR
             success = false;
         }
         // 数据库存在同名文件，则删除数据库中的相关文件
-        if (myredis.IsExistFile(path)) {
+        if (myredis.FileExists(path)) {
             map<string, string> Properties;
             myredis.SelectSmallFile(path, Properties);
             FileLock delete_lock(Properties["MergeFileName"], FlockType::WRFLCK);
@@ -145,32 +142,46 @@ void FormatHandler::SaveClientContent(string path, Response &res, const ContentR
             }
         }
     }
-    content_reader([&file, success](const char *data, size_t data_length) {
+    bool is_smallfile = true;
+    string content;
+    content_reader([&file, &content, &is_smallfile, success](const char *data, size_t data_length) {
         if (success) {
-            file.write(data, data_length);
+            content.append(data, data_length);
+            if (content.size() <= SMALL_BIG_LENGTH && is_smallfile) {
+                return true;
+            } else {
+                is_smallfile = false;
+                file.write(&content[0], content.size());
+                content.clear();
+            }
         }
         return true;
     });
     // 文件操作完成就解锁
     file_lock.UNFLCK();
-    if (success) {
+    if (success && !is_smallfile) {
         ACTION_RETURN(res, err, ActionType::UploadSuccess);
     } else {
         remove(path.c_str());
     }
+    // 若为小文件，进入到小文件合并操作
+    if (success && is_smallfile) {
+        MergeSmallFile(path, content, res, myredis, err);
+    }
 }
 
-void FormatHandler::SendFixedContent(string path, Response &res, MyRedis &myredis, string &err) {
+void FormatHandler::SendClientContent(string path, Response &res, MyRedis &myredis, string &err) {
     if (!myredis.IsRun()) {
         ACTION_RETURN(res, err, ActionType::DataBaseError);
         return;
     }
     // 若路径在数据库中存在，则跳转至发送小文件的接口
-    if (myredis.IsExistFile(path)) {
+    if (myredis.FileExists(path)) {
         SendSmallFile(path, res, myredis, err);
         return;
     }
-    // 加读锁
+    // 获取文件大小，根据设定的区分值来决定以定长还是变长发送
+    // 获取大小时加读锁
     FileLock file_lock(path, FlockType::RDFLCK);
     if (file_lock.SET_RDFLCK() == -1) {
         ACTION_RETURN(res, err, ActionType::ReadConflict);
@@ -189,6 +200,21 @@ void FormatHandler::SendFixedContent(string path, Response &res, MyRedis &myredi
     }
     file.seekg(0, file.end);
     size_t data_length = (size_t)file.tellg();
+    if (data_length <= FIXED_CHUNKED_LENGTH) {
+        SendFixedContent(path, data_length, res, myredis, err);
+    } else {
+        SendChunkedContent(path, res, myredis, err);
+    }
+    file_lock.UNFLCK();
+}
+
+void FormatHandler::SendFixedContent(string path, int data_length, Response &res, MyRedis &myredis, string &err) {
+    // 加读锁
+    FileLock file_lock(path, FlockType::RDFLCK);
+    if (file_lock.SET_RDFLCK() == -1) {
+        ACTION_RETURN(res, err, ActionType::ReadConflict);
+        return;
+    }
     res.set_content_provider(
         data_length, "application/octet-stream",
         [path](size_t offset, size_t length, DataSink &sink) mutable {
@@ -207,26 +233,9 @@ void FormatHandler::SendFixedContent(string path, Response &res, MyRedis &myredi
 }
 
 void FormatHandler::SendChunkedContent(string path, Response &res, MyRedis &myredis, string &err) {
-    if (!myredis.IsRun()) {
-        ACTION_RETURN(res, err, ActionType::DataBaseError);
-        return;
-    }
-    if (myredis.IsExistFile(path)) {
-        SendSmallFile(path, res, myredis, err);
-        return;
-    }
     FileLock file_lock(path, FlockType::RDFLCK);
     if (file_lock.SET_RDFLCK() == -1) {
         ACTION_RETURN(res, err, ActionType::ReadConflict);
-        return;
-    }
-    fstream file(path, ios::in | ios::binary);
-    if (!file.is_open()) {
-        ACTION_RETURN(res, err, ActionType::OpenFileError);
-        return;
-    }
-    if (opendir(path.c_str()) != nullptr) {
-        ACTION_RETURN(res, err, ActionType::DirectoryConflict);
         return;
     }
     res.set_chunked_content_provider(
@@ -277,7 +286,7 @@ void FormatHandler::SendSmallFile(string path, Response &res, MyRedis &myredis, 
     ACTION_RETURN(res, err, ActionType::DownloadSmallFileSuccess);
 }
 
-void FormatHandler::MergeSmallFile(string path, const Request &req, Response &res, MyRedis &myredis, string &err) {
+void FormatHandler::MergeSmallFile(string path, string &content, Response &res, MyRedis &myredis, string &err) {
     // 大文件路径，找到最后一个/的位置，截取后添加大文件的名称
     string MergePath = path.substr(0, path.rfind('/') + 1) + MERGE_FILE_NAME;
     // 小文件路径
@@ -308,8 +317,8 @@ void FormatHandler::MergeSmallFile(string path, const Request &req, Response &re
     // 小文件偏移量
     size_t offset = (size_t)file.tellg();
     // 小文件大小
-    size_t size = req.body.size();
-    file << req.body;
+    size_t size = content.size();
+    file << content;
     // 解锁
     file_lock.UNFLCK();
     // 小文件的修改时间设定为本地时间
@@ -332,7 +341,7 @@ void FormatHandler::MergeSmallFile(string path, const Request &req, Response &re
 void DeleteHandler::Method(const Request &req, Response &res) {
     string ServerPath = path + req.matches[1].str() + req.matches[2].str();
     string err = "";
-    switch (static_cast<int>(type)) {
+    switch (static_cast<int>(MethodMap[FirstMatch(req.matches[0].str())])) {
     case static_cast<int>(MethodType::DeleteFile): {
         DeleteFile(ServerPath, res, myredis, err);
         WriteLog(CreateLog(req, "删除文件" + req.matches[1].str() + req.matches[2].str(), err));
@@ -348,7 +357,7 @@ void DeleteHandler::DeleteFile(string path, Response &res, MyRedis &myredis, str
         return;
     }
     // 如果是已经合并的小文件，则需要把数据库信息删除
-    if (myredis.IsExistFile(path)) {
+    if (myredis.FileExists(path)) {
         // 先查询小文件对应的大文件名，大文件索引和小文件内容都要删除
         map<string, string> Properties;
         myredis.SelectSmallFile(path, Properties);
@@ -398,7 +407,7 @@ void DeleteHandler::DeleteFile(string path, Response &res, MyRedis &myredis, str
 void DirHandler::Method(const Request &req, Response &res) {
     string ServerPath = path + req.matches[1].str();
     string err = "";
-    switch (static_cast<int>(type)) {
+    switch (static_cast<int>(MethodMap[FirstMatch(req.matches[0].str())])) {
     case static_cast<int>(MethodType::SendDirList): {
         SendDirList(ServerPath, res, myredis, err);
         WriteLog(CreateLog(req, "获取" + req.matches[1].str() + "目录下的文件列表", err));

@@ -12,7 +12,7 @@ class HandlerFactory {
 public:
     HandlerFactory(Server &svr, string password, MyRedis &myredis, map<string, json> &paramsList)
         : svr(svr), password(password), myredis(myredis), paramsList(paramsList) {}
-    AllHandler CreateHandler(string);
+    void CreateHandler(AllHandler &);
 
 private:
     Server &svr;

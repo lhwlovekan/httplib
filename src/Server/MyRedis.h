@@ -16,7 +16,7 @@ public:
     // 数据库根据json文件内容初始化
     bool InitConnect(Json);
     // 数据库中是否存在此文件
-    bool IsExistFile(string);
+    bool FileExists(string);
     // 数据库中查询大文件对应的小文件索引列表
     bool SelectMergeFile(string, vector<string> &);
     // 数据库中查询小文件内容

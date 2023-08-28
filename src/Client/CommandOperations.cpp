@@ -205,7 +205,7 @@ void CommandOperations::ClientHelp() {
     PrintColorLine("|测试请求| test", FontColor::LPurple);
     PrintColorLine("|切换用户| user [用户名称]", FontColor::LPurple);
     PrintColorLine("|上传文件| put [-f/fixed] [-r/recursion] [-c/check] [本地文件/文件夹名]", FontColor::LPurple);
-    PrintColorLine("|下载文件| get [-f/fixed] [-r/recursion] [远程文件/文件夹名]", FontColor::LPurple);
+    PrintColorLine("|下载文件| get [-r/recursion] [远程文件/文件夹名]", FontColor::LPurple);
     PrintColorLine("|删除文件| delete [-r/recursion] [远程文件/文件夹名]", FontColor::LPurple);
     PrintColorLine("|显示文件| ls [-l/local]", FontColor::LPurple);
     PrintColorLine("|创文件夹| mkdir [文件夹名]", FontColor::LPurple);
@@ -285,7 +285,7 @@ void CommandOperations::SwitchCommands(string client_command) {
             PrintColorLine("远程文件/文件夹名不能为空!", FontColor::LRed);
             break;
         }
-        bool is_illegal = false, is_fixed = false, is_recursion = false;
+        bool is_illegal = false, is_recursion = false;
         pair<string, string> LRurl;
         if (result[result.size() - 1][0] == '/') {
             is_illegal = !DealURLCommand(result[result.size() - 1], localurl, LRurl);
@@ -295,8 +295,6 @@ void CommandOperations::SwitchCommands(string client_command) {
         for (int i = 1; i < result.size() - 1; i++) {
             if (result[i] == "-r" || result[i] == "-recursion") {
                 is_recursion = true;
-            } else if (result[i] == "-f" || result[i] == "-fixed") {
-                is_fixed = true;
             } else {
                 PrintColorLine("下载文件配置错误!", FontColor::LRed);
                 is_illegal = true;
@@ -305,14 +303,10 @@ void CommandOperations::SwitchCommands(string client_command) {
         if (is_illegal) {
             break;
         }
-        if (is_fixed && is_recursion) {
-            mycli->DownloadDir(LRurl.second + '/', LRurl.first + '/', "fixed");
-        } else if (is_recursion) {
-            mycli->DownloadDir(LRurl.second + '/', LRurl.first + '/', "chunked");
-        } else if (is_fixed) {
-            mycli->FixedDownload(LRurl.second, LRurl.first);
+        if (is_recursion) {
+            mycli->DownloadDir(LRurl.second + '/', LRurl.first + '/');
         } else {
-            mycli->ChunkedDownload(LRurl.second, LRurl.first);
+            mycli->DownloadContent(LRurl.second, LRurl.first);
         }
         break;
     }

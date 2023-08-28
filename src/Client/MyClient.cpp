@@ -41,10 +41,6 @@ void MyClient::FixedUpload(string src, string url, bool is_check) {
     size_t data_length = (size_t)file.tellg();
     // 读指针回到文件起点处
     file.seekg(0, file.beg);
-    // 若文件小于1MB，则跳转到小文件合并去处理
-    if (data_length < 1024 * 1024) {
-        prefix = "/small";
-    }
     if (auto result = cli->Post(
             prefix + url, {{"NAME", ClientName}}, data_length,
             [&](size_t offset, size_t length, DataSink& sink) {
@@ -90,15 +86,6 @@ void MyClient::ChunkedUpload(string src, string url, bool is_check) {
         return;
     }
     string buffer(BUFFER_SIZE, '\0');
-    // 读出文件长度
-    file.seekg(0, file.end);
-    size_t data_length = (size_t)file.tellg();
-    // 读指针回到文件起点处
-    file.seekg(0, file.beg);
-    // 若文件小于1MB，则跳转到小文件合并去处理
-    if (data_length < 1024 * 1024) {
-        prefix = "/small";
-    }
     if (auto result = cli->Post(
             prefix + url, {{"NAME", ClientName}},
             [&](size_t offset, DataSink& sink) {
@@ -129,8 +116,8 @@ void MyClient::ChunkedUpload(string src, string url, bool is_check) {
     }
 }
 
-void MyClient::FixedDownload(string src, string url) {
-    string prefix = "/fixed";
+void MyClient::DownloadContent(string src, string url) {
+    string prefix = "/get";
     fstream file(src, ios::out | ios::binary);
     if (!file.is_open()) {
         PrintColorLine("客户端创建本地文件失败!", FontColor::LRed);
@@ -153,29 +140,6 @@ void MyClient::FixedDownload(string src, string url) {
                        result->get_header_value("ACTION") == "SUCCESS" ? FontColor::LGreen : FontColor::LRed);
         if (result->get_header_value("ACTION") == "FAILURE") {
             // 若传输失败，则将本地创建的文件删除
-            remove(src.c_str());
-        }
-    } else {
-        remove(src.c_str());
-        auto err = result.error();
-        PrintColorLine("HTTP连接异常:" + to_string(err), FontColor::LRed);
-    }
-}
-
-void MyClient::ChunkedDownload(string src, string url) {
-    string prefix = "/chunked";
-    fstream file(src, ios::out | ios::binary);
-    if (!file.is_open()) {
-        PrintColorLine("客户端创建本地文件失败!", FontColor::LRed);
-        return;
-    }
-    if (auto result = cli->Get(prefix + url, {{"NAME", ClientName}}, [&](const char* data, size_t data_length) {
-            file.write(data, data_length);
-            return true;
-        })) {
-        PrintColorLine("服务器返回:" + result->get_header_value("RETURN"),
-                       result->get_header_value("ACTION") == "SUCCESS" ? FontColor::LGreen : FontColor::LRed);
-        if (result->get_header_value("ACTION") == "FAILURE") {
             remove(src.c_str());
         }
     } else {
@@ -226,7 +190,7 @@ void MyClient::UploadDir(string src, string url, string option, bool is_check) {
 
 // 递归下载文件夹
 // src和url都以'/'结尾
-void MyClient::DownloadDir(string src, string url, string option) {
+void MyClient::DownloadDir(string src, string url) {
     string prefix = "/dir";
     // 向服务器申请获得对应文件夹的目录列表
     if (auto result = cli->Get(prefix + url, {{"NAME", ClientName}})) {
@@ -243,13 +207,9 @@ void MyClient::DownloadDir(string src, string url, string option) {
         for (auto file : Dir_info) {
             // 如果名称中含有'/'，则为文件夹
             if (file["文件名称"].get<string>().find_first_of('/') != string::npos) {
-                DownloadDir(src + file["文件名称"].get<string>(), url + file["文件名称"].get<string>(), option);
+                DownloadDir(src + file["文件名称"].get<string>(), url + file["文件名称"].get<string>());
             } else {
-                if (option == "fixed") {
-                    FixedDownload(src + file["文件名称"].get<string>(), url + file["文件名称"].get<string>());
-                } else if (option == "chunked") {
-                    ChunkedDownload(src + file["文件名称"].get<string>(), url + file["文件名称"].get<string>());
-                }
+                DownloadContent(src + file["文件名称"].get<string>(), url + file["文件名称"].get<string>());
             }
         }
     } else {
@@ -375,6 +335,7 @@ void MyClient::ChangeLocalURL(string command) {
 
 void MyClient::GetRemoteDir(string url) {
     string prefix = "/dir";
+    cout<<prefix+url<<endl;
     if (auto result = cli->Get(prefix + url, {{"NAME", ClientName}})) {
         PrintColorLine("服务器返回:" + result->get_header_value("RETURN"),
                        result->get_header_value("ACTION") == "SUCCESS" ? FontColor::LGreen : FontColor::LRed);
@@ -445,7 +406,7 @@ void MyClient::GetLocalDir(string src) {
 }
 
 void MyClient::CheckDocument(string src, string url, unsigned char* Localresult) {
-    string prefix = "/chunked";
+    string prefix = "/get";
     // 服务器传输的流生成MD5
     MD5_CTX md5_server;
     MD5_Init(&md5_server);
@@ -483,7 +444,7 @@ void MyClient::CheckDocument(string src, string url, unsigned char* Localresult)
 }
 
 void MyClient::StopServer(string password) {
-    if (auto result = cli->Get("/stop", {{"NAME", ClientName}, {"PASSWORD", password}})) {
+    if (auto result = cli->Get("/close", {{"NAME", ClientName}, {"PASSWORD", password}})) {
         PrintColorLine("服务器返回:" + result->get_header_value("RETURN"),
                        result->get_header_value("ACTION") == "SUCCESS" ? FontColor::LGreen : FontColor::LRed);
     } else {

@@ -31,16 +31,16 @@ public:
     void InitParams(string, string, int);
     // 用Get请求进行连接测试
     void TestGet();
-    // 以定长传输格式上传、下载文件
+    // 以定长传输格式上传文件
     void FixedUpload(string, string, bool);
-    void FixedDownload(string, string);
-    // 以变长传输格式（chunked格式）上传、下载文件
+    // 以变长传输格式（chunked格式）上传文件
     void ChunkedUpload(string, string, bool);
-    void ChunkedDownload(string, string);
+    // 下载文件
+    void DownloadContent(string, string);
     // 递归上传文件夹
     void UploadDir(string, string, string, bool);
     // 递归下载文件夹
-    void DownloadDir(string, string, string);
+    void DownloadDir(string, string);
     // 删除文件
     void DeleteFile(string);
     // 递归删除文件夹

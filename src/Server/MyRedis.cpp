@@ -54,7 +54,7 @@ bool MyRedis::InitConnect(Json config) {
     }
 }
 
-bool MyRedis::IsExistFile(string FileName) {
+bool MyRedis::FileExists(string FileName) {
     try {
         if (redis.exists(FileName) != 0) {
             return true;
