@@ -20,7 +20,7 @@ httplib是一个用C++实现的HTTP/HTTPS服务器/客户端开源项目。
 
 - 若当前用户为root，需要通过配置文件指定运行用户，否则以当前用户运行。
 
-- 通过配置文件指定URL，处理器，处理器参数，如：{"url":"/data","handler":"data","params":{"dir":"/var/test/httplib/data"}}。
+- 通过配置文件指定URL，处理器，处理器参数，如：{"url":"/data","handlerName":"data","path":"/var/test/httplib/data"}。
 
 - 使用工厂模式创建对应的处理器。
 
