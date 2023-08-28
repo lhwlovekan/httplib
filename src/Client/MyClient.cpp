@@ -335,7 +335,6 @@ void MyClient::ChangeLocalURL(string command) {
 
 void MyClient::GetRemoteDir(string url) {
     string prefix = "/dir";
-    cout<<prefix+url<<endl;
     if (auto result = cli->Get(prefix + url, {{"NAME", ClientName}})) {
         PrintColorLine("服务器返回:" + result->get_header_value("RETURN"),
                        result->get_header_value("ACTION") == "SUCCESS" ? FontColor::LGreen : FontColor::LRed);
