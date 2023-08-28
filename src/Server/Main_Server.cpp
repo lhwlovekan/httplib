@@ -12,4 +12,5 @@ int main() {
         return 0;
     }
     mysvr.run();
+    return 0;
 }
