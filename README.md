@@ -20,11 +20,11 @@ httplib是一个用C++实现的HTTP/HTTPS服务器/客户端开源项目。
 
 - 若当前用户为root，需要通过配置文件指定运行用户，否则以当前用户运行。
 
-- 通过配置文件指定URL，处理器，处理器参数，如：{"url":"/data","handlerName":"data","path":"/var/test/httplib/data"}。
+- 通过配置文件指定URL，处理器，处理器参数，如：{`url`:`/data`,`handlerName`:`data`,`path`:`/home/LHW/ServerSource`}。
 
 - 使用工厂模式创建对应的处理器。
 
-- 实现一个读、写二进制文件内容（内容类型：application/octet-stream）的处理器，可处理定长（有Content-Length头部）及变长（chunked格式）的传输格式，该处理器通过上述配置的参数将请求对到指定目录中的文件，如/data/backup/ubuntu.iso按上述示例目录将对应到/var/test/httplib/data/backup/ubuntu.iso。
+- 实现一个读、写二进制文件内容（内容类型：application/octet-stream）的处理器，可处理定长（有Content-Length头部）及变长（chunked格式）的传输格式，该处理器通过上述配置的参数将请求对到指定目录中的文件，如`/data/lhw/ubuntu.iso`按上述示例目录将对应到`/home/LHW/ServerSource/data/lhw/ubuntu.iso`。
 
 >chunked格式介绍：https://en.wikipedia.org/wiki/Chunked_transfer_encoding
 
