@@ -1,3 +1,0 @@
-/home/scutech/公共的/httplib/src/Server/build/CMakeFiles/rebuild_cache.dir
-/home/scutech/公共的/httplib/src/Server/build/CMakeFiles/edit_cache.dir
-/home/scutech/公共的/httplib/src/Server/build/CMakeFiles/server.dir
