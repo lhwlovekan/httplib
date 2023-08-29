@@ -11,6 +11,7 @@ int main() {
         cout << "服务器初始化参数失败!" << endl;
         return 0;
     }
+    vector<vector<pair<int,int>>> a;
     mysvr.run();
     return 0;
 }
