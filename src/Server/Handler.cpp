@@ -59,7 +59,6 @@ void SpecialHandler::Method(const Request &req, Response &res) {
         break;
     }
     case static_cast<int>(MethodType::CloseServer): {
-        cout << req.matches[0] << endl;
         CloseServer(req, res, err);
         WriteLog(CreateLog(req, "关闭服务器", err));
         break;
